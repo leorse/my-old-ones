@@ -1,0 +1,284 @@
+{
+  "app": {
+    "name": "My Olds One",
+    "tagline": "Votre généalogie, sur votre machine."
+  },
+  "nav": {
+    "tree": "Arbre",
+    "persons": "Personnes",
+    "places": "Lieux",
+    "sources": "Sources",
+    "media": "Médias",
+    "stats": "Statistiques",
+    "quality": "Qualité",
+    "settings": "Réglages"
+  },
+  "home": {
+    "sample": "Projet d'exemple (grande famille)",
+    "sampleBusy": "Génération en cours…",
+    "new": "Nouveau projet",
+    "open": "Ouvrir un projet",
+    "recent": "Projets récents",
+    "noRecent": "Aucun projet récent.",
+    "gedcom": "Importer un GEDCOM"
+  },
+  "toolbar": {
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "close": "Fermer le projet",
+    "search": "Rechercher (Ctrl+K)",
+    "importGedcom": "Importer un GEDCOM…"
+  },
+  "common": {
+    "add": "Ajouter",
+    "delete": "Supprimer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "none": "—",
+    "unknown": "Inconnu"
+  },
+  "persons": {
+    "title": "Personnes",
+    "surname": "Nom",
+    "givenNames": "Prénoms",
+    "sex": "Sexe",
+    "add": "Ajouter",
+    "empty": "Aucune personne pour l'instant.",
+    "select": "Sélectionnez une personne.",
+    "sexes": {
+      "M": "Homme",
+      "F": "Femme",
+      "other": "Autre",
+      "unknown": "Inconnu"
+    },
+    "living": {
+      "living": "Vivant",
+      "deceased": "Décédé",
+      "unknown": "Statut inconnu"
+    }
+  },
+  "person": {
+    "identity": "Identité",
+    "events": "Événements",
+    "family": "Famille",
+    "notes": "Notes",
+    "root": "Personne racine",
+    "setRoot": "Définir comme racine",
+    "sosa": "Sosa n° {{n}}",
+    "favorite": "Favori",
+    "primaryName": "Nom principal",
+    "makePrimary": "Rendre principal",
+    "addName": "Ajouter un nom",
+    "deleteName": "Supprimer le nom",
+    "nameTypes": {
+      "birth": "Naissance",
+      "usage": "Usage",
+      "marital": "Marital",
+      "religious": "Religieux",
+      "nickname": "Surnom",
+      "other": "Autre"
+    },
+    "ageAtDeath": "Âge au décès : {{age}}",
+    "ageApprox": "~{{count}} ans",
+    "age": "{{count}} an",
+    "age_other": "{{count}} ans",
+    "atAge": "à {{age}}",
+    "fatherAgeAtBirth": "Âge du père à la naissance : {{age}}",
+    "motherAgeAtBirth": "Âge de la mère à la naissance : {{age}}",
+    "parentAgeAtBirth": "Âge du parent à la naissance : {{age}}",
+    "notesPlaceholder": "Biographie, remarques… (Markdown)"
+  },
+  "events": {
+    "add": "Ajouter un événement",
+    "delete": "Supprimer l'événement",
+    "date": "Date",
+    "place": "Lieu",
+    "description": "Description",
+    "dateHint": "ex. 12 mars 1845, vers 1850, entre 1840 et 1845, 3 germinal an XII",
+    "dateText": "Texte libre (non interprété)",
+    "empty": "Aucun événement.",
+    "newPlace": "Créer le lieu « {{name}} »",
+    "types": {
+      "birth": "Naissance",
+      "baptism": "Baptême",
+      "death": "Décès",
+      "burial": "Inhumation",
+      "cremation": "Crémation",
+      "occupation": "Profession",
+      "residence": "Résidence",
+      "census": "Recensement",
+      "military": "Service militaire",
+      "decoration": "Décoration",
+      "emigration": "Émigration",
+      "immigration": "Immigration",
+      "naturalization": "Naturalisation",
+      "degree": "Diplôme",
+      "religion": "Religion",
+      "custom": "Personnalisé",
+      "marriage": "Mariage",
+      "pacs": "PACS",
+      "divorce": "Divorce",
+      "separation": "Séparation"
+    }
+  },
+  "family": {
+    "parents": "Parents",
+    "unions": "Unions",
+    "children": "Enfants",
+    "siblings": "Fratrie",
+    "otherChildren": "Enfants (sans union)",
+    "none": "Aucun",
+    "addFather": "+ Père",
+    "addMother": "+ Mère",
+    "addSpouse": "+ Conjoint(e)",
+    "addChild": "+ Enfant",
+    "addSibling": "+ Frère/sœur",
+    "unlink": "Délier",
+    "roles": {
+      "father": "Père",
+      "mother": "Mère",
+      "parent": "Parent"
+    },
+    "kinds": {
+      "biological": "Biologique",
+      "adoptive": "Adoptif",
+      "step": "Beau-parent",
+      "foster": "Accueil",
+      "legal": "Légal",
+      "unknown": "Inconnu"
+    },
+    "unionTypes": {
+      "marriage": "Mariage",
+      "pacs": "PACS",
+      "free": "Union libre",
+      "partnership": "Partenariat",
+      "other": "Autre"
+    },
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "deleteUnion": "Supprimer l'union",
+    "newPerson": "Nouvelle personne",
+    "create": "Créer"
+  },
+  "delete": {
+    "title": "Supprimer {{name}}",
+    "only": "La personne seule",
+    "descendants": "Avec ses descendants exclusifs",
+    "ancestors": "Avec ses ancêtres exclusifs",
+    "impact": "{{people}} personne(s), {{events}} événement(s), {{links}} lien(s) de filiation, {{unions}} union(s), {{citations}} citation(s), {{media}} média(s) lié(s).",
+    "isolated": "Deviendront isolées : {{names}}",
+    "undoHint": "Cette opération est annulable."
+  },
+  "tree": {
+    "title": "Arbre généalogique",
+    "toolbar": "Outils de l'arbre",
+    "mode": "Type d'arbre",
+    "modes": {
+      "hourglass": "Sablier",
+      "ancestors": "Ascendants",
+      "descendants": "Descendants"
+    },
+    "ancestors": "Ascendants",
+    "descendants": "Descendants",
+    "lessAncestors": "Moins d'ascendants",
+    "moreAncestors": "Plus d'ascendants",
+    "lessDescendants": "Moins de descendants",
+    "moreDescendants": "Plus de descendants",
+    "toRoot": "Revenir à la racine",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "fit": "Ajuster",
+    "centeredOn": "Centré sur {{name}}",
+    "count": "{{count}} personnes affichées",
+    "truncated": "Arbre trop grand : réduisez le nombre de générations.",
+    "selection": "Personne sélectionnée",
+    "openCard": "Ouvrir la fiche",
+    "recenter": "Centrer l'arbre ici",
+    "add": "Ajouter",
+    "rel": {
+      "father": "+ Père",
+      "mother": "+ Mère",
+      "spouse": "+ Conjoint(e)",
+      "child": "+ Enfant",
+      "sibling": "+ Frère/sœur"
+    },
+    "addTitle": {
+      "father": "Ajouter un père",
+      "mother": "Ajouter une mère",
+      "sibling": "Ajouter un frère ou une sœur",
+      "child": "Ajouter un enfant"
+    },
+    "hidden": {
+      "father": "Un père existe mais n'est pas affiché : cliquer pour l'afficher",
+      "mother": "Une mère existe mais n'est pas affichée : cliquer pour l'afficher",
+      "child_one": "{{count}} enfant non affiché : cliquer pour l'afficher",
+      "child_other": "{{count}} enfants non affichés : cliquer pour les afficher"
+    }
+  },
+  "search": {
+    "placeholder": "Rechercher un nom, un lieu, une note…",
+    "none": "Aucun résultat."
+  },
+  "status": {
+    "persons_one": "{{count}} personne",
+    "persons_other": "{{count}} personnes",
+    "jobs_one": "{{count}} tâche en cours",
+    "jobs_other": "{{count}} tâches en cours"
+  },
+  "placeholder": "Cet écran sera réalisé dans une phase ultérieure.",
+  "error": "Une erreur est survenue : {{message}}",
+  "gedcom": {
+    "title": "Import GEDCOM",
+    "progress": "Progression de l'import",
+    "starting": "Lecture du fichier…",
+    "source": "Source : {{software}} · GEDCOM {{version}} · encodage {{encoding}}",
+    "declared": "(déclaré : {{declared}})",
+    "counts": {
+      "persons": "Personnes",
+      "families": "Familles",
+      "unions": "Unions",
+      "parentLinks": "Liens de filiation",
+      "names": "Noms",
+      "events": "Événements",
+      "places": "Lieux",
+      "sources": "Sources",
+      "citations": "Citations",
+      "notes": "Notes"
+    },
+    "extras": "{{count}} balise(s) non interprétée(s) conservée(s) telles quelles (extensions de l'éditeur).",
+    "media": "{{count}} objet(s) multimédia non importé(s) : l'import des fichiers médias n'est pas encore disponible.",
+    "corrections": "{{count}} correction(s) automatique(s)",
+    "warnings": "{{count}} avertissement(s)",
+    "more": "… et {{count}} autre(s) non listé(s).",
+    "skipped": "Balises ignorées :",
+    "noWarnings": "Aucun avertissement.",
+    "failed": "L'import a échoué : {{message}}",
+    "nothingWritten": "Rien n'a été ajouté au projet.",
+    "cancelled": "Import annulé : rien n'a été ajouté.",
+    "undoHint": "Les données importées s'ajoutent sans rien écraser. Une sauvegarde du projet a été faite avant l'import (dossier .backups)."
+  },
+  "info": {
+    "zone": "Informations sur la personne sélectionnée",
+    "hint": "Sélectionnez une personne dans l'arbre pour voir ses informations.",
+    "open": "Ouvrir la fiche",
+    "identity": "Identité",
+    "birth": "Naissance",
+    "death": "Décès",
+    "events": "Parcours",
+    "family": "Famille",
+    "unknownDate": "date inconnue",
+    "none": "Aucun",
+    "parents": "Parents",
+    "unions": "Unions",
+    "children": "Enfants",
+    "childrenCount_one": "{{count}} enfant",
+    "childrenCount_other": "{{count}} enfants",
+    "siblings": "Frères et sœurs",
+    "otherNames": "Autres noms",
+    "notes": "Notes",
+    "loading": "Chargement…",
+    "age": "Âge : {{age}}",
+    "burial": "Inhumation"
+  }
+}
