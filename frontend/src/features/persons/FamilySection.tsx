@@ -5,7 +5,7 @@ import {PersonLink, ageText} from '../../components/helpers'
 import {useAction} from '../../queries'
 import {defaultSurnameFor} from './surname'
 
-export type Relation = 'father' | 'mother' | 'spouse' | 'child' | 'sibling'
+export type Relation = 'father' | 'mother' | 'spouse' | 'partner' | 'child' | 'sibling'
 
 export interface Adding {
     relation: Relation
@@ -119,7 +119,7 @@ export function FamilySection({detail}: { detail: repo.PersonDetail }) {
                     {addBtn('child', t('family.addChild'), u.id)}
                 </div>
             ))}
-            <div className="row">{addBtn('spouse', t('family.addSpouse'))}</div>
+            <div className="row">{addBtn('spouse', t('family.addSpouse'))}{addBtn('partner', t('family.addPartner'))}</div>
 
             {(f.otherChildren.length > 0 || f.unions.length === 0) && <>
                 <h4>{f.unions.length ? t('family.otherChildren') : t('family.children')}</h4>

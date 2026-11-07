@@ -11,7 +11,8 @@ import manIcon from '../../assets/icons/man.svg'
 import womanIcon from '../../assets/icons/woman.svg'
 import childIcon from '../../assets/icons/child.svg'
 import broIcon from '../../assets/icons/bro.svg'
-import {PersonInfoBar} from './PersonInfoBar'
+import heartIcon from '../../assets/icons/heart.svg'
+import {PersonEditor} from './PersonEditor'
 import {BOX_H, BOX_W, buildLayout, childIds, parentIds, type LNode} from './layout'
 
 const SEX_COLOR: Record<string, string> = {M: '#3b82f6', F: '#ec4899', other: '#a855f7', unknown: '#9ca3af'}
@@ -31,14 +32,14 @@ function years(birth: string, death: string, living: string): string {
     return living === 'deceased' ? `${birth || '?'} – ?` : `${birth} –`
 }
 
-type AddRel = 'father' | 'mother' | 'sibling' | 'child'
+type AddRel = 'father' | 'mother' | 'sibling' | 'child' | 'partner'
 
-const ICONS: Record<AddRel, string> = {father: manIcon, mother: womanIcon, sibling: broIcon, child: childIcon}
+const ICONS: Record<AddRel, string> = {father: manIcon, mother: womanIcon, sibling: broIcon, child: childIcon, partner: heartIcon}
 
 const ADD_R = 12
 // Position des boutons d'ajout : à cheval sur le bord de la case, pour que le survol reste continu.
 const ADD_POS: Record<AddRel, [number, number]> = {
-    father: [BOX_W * 0.27, 0], mother: [BOX_W * 0.73, 0], sibling: [0, BOX_H / 2], child: [BOX_W * 0.62, BOX_H],
+    father: [BOX_W * 0.27, 0], mother: [BOX_W * 0.73, 0], sibling: [0, BOX_H / 2], child: [BOX_W * 0.62, BOX_H], partner: [BOX_W, BOX_H / 2],
 }
 
 /** Bouton rond (icône du proche à ajouter) autour d'une case ; apparaît au survol ou à la sélection. */
@@ -393,7 +394,7 @@ export function TreeView() {
                                         <rect width={6} height={BOX_H} rx={3} fill={SEX_COLOR[p.person.sex] ?? SEX_COLOR.unknown}/>
                                         <text x={14} y={24} className="tname">{truncate(label, 24)}</text>
                                         <text x={14} y={43} className="tyears">{years(p.birth, p.death, p.person.living)}</text>
-                                        {(['father', 'mother', 'sibling', 'child'] as const).filter((r) =>
+                                        {(['father', 'mother', 'sibling', 'child', 'partner'] as const).filter((r) =>
                                             r === 'father' ? !p.hasFather : r === 'mother' ? !p.hasMother : r === 'sibling' ? p.hasParents : true,
                                         ).map((r) => (
                                             <AddButton key={r} rel={r} label={t(`tree.addTitle.${r}`)}
@@ -420,7 +421,7 @@ export function TreeView() {
                         </div>
                         <h4>{t('tree.add')}</h4>
                         <div className="row">
-                            {(['father', 'mother', 'spouse', 'child', 'sibling'] as const).map((r) => (
+                            {(['father', 'mother', 'spouse', 'partner', 'child', 'sibling'] as const).map((r) => (
                                 <button key={r} aria-pressed={adding?.relation === r}
                                         onClick={() => setAdding(adding?.relation === r ? null : {relation: r, unionId: ''})}>
                                     {r !== 'spouse' && <img src={ICONS[r]} alt="" width={14} height={14}/>}{t(`tree.rel.${r}`)}
@@ -435,7 +436,8 @@ export function TreeView() {
                     </aside>
                 )}
             </div>
-            <PersonInfoBar personId={selectedNode?.id ?? null} onOpen={openPerson}/>
+            <PersonEditor personId={selectedNode?.id ?? null} onOpen={openPerson} onFocus={setTreeFocus}
+                          years={(id) => { const n = people.get(id); return n ? years(n.birth, n.death, n.person.living) : '' }}/>
         </div>
     )
 }

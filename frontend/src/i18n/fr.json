@@ -159,7 +159,8 @@
     "moveDown": "Descendre",
     "deleteUnion": "Supprimer l'union",
     "newPerson": "Nouvelle personne",
-    "create": "Créer"
+    "create": "Créer",
+    "addPartner": "+ Concubin(e)"
   },
   "delete": {
     "title": "Supprimer {{name}}",
@@ -201,13 +202,15 @@
       "mother": "+ Mère",
       "spouse": "+ Conjoint(e)",
       "child": "+ Enfant",
-      "sibling": "+ Frère/sœur"
+      "sibling": "+ Frère/sœur",
+      "partner": "+ Concubin(e)"
     },
     "addTitle": {
       "father": "Ajouter un père",
       "mother": "Ajouter une mère",
       "sibling": "Ajouter un frère ou une sœur",
-      "child": "Ajouter un enfant"
+      "child": "Ajouter un enfant",
+      "partner": "Ajouter un concubin"
     },
     "hidden": {
       "father": "Un père existe mais n'est pas affiché : cliquer pour l'afficher",
@@ -259,26 +262,33 @@
     "undoHint": "Les données importées s'ajoutent sans rien écraser. Une sauvegarde du projet a été faite avant l'import (dossier .backups)."
   },
   "info": {
-    "zone": "Informations sur la personne sélectionnée",
-    "hint": "Sélectionnez une personne dans l'arbre pour voir ses informations.",
-    "open": "Ouvrir la fiche",
-    "identity": "Identité",
-    "birth": "Naissance",
-    "death": "Décès",
-    "events": "Parcours",
-    "family": "Famille",
-    "unknownDate": "date inconnue",
-    "none": "Aucun",
-    "parents": "Parents",
-    "unions": "Unions",
-    "children": "Enfants",
-    "childrenCount_one": "{{count}} enfant",
-    "childrenCount_other": "{{count}} enfants",
-    "siblings": "Frères et sœurs",
-    "otherNames": "Autres noms",
-    "notes": "Notes",
     "loading": "Chargement…",
-    "age": "Âge : {{age}}",
-    "burial": "Inhumation"
+    "open": "Ouvrir la fiche"
+  },
+  "editor": {
+    "zone": "Modification de la personne sélectionnée",
+    "hint": "Sélectionnez une personne dans l'arbre pour la modifier.",
+    "tabs": "Rubriques",
+    "tab": {
+      "info": "Informations",
+      "parents": "Parents",
+      "children": "Enfants"
+    },
+    "birthDate": "Date de naissance",
+    "birthPlace": "Lieu de naissance",
+    "deathDate": "Date de décès",
+    "deathPlace": "Lieu de décès",
+    "marriageDate": "Date de mariage",
+    "marriagePlace": "Lieu de mariage",
+    "divorceDate": "Date de divorce",
+    "placeUnknown": "Lieu inconnu : choisissez un lieu de la liste ou créez-le.",
+    "noUnion": "Aucune union : ajoutez un conjoint pour saisir un mariage.",
+    "noParents": "Aucun parent connu.",
+    "linkKind": "Nature du lien",
+    "noChildren": "Aucun enfant.",
+    "addChild": "Ajouter un enfant",
+    "withUnion": "Union des parents",
+    "noUnionChoice": "Sans union (ce parent seul)",
+    "added": "« {{name}} » ajouté(e)"
   }
 }

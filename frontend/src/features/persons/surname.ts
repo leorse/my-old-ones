@@ -1,4 +1,4 @@
-export type NewRelation = 'father' | 'mother' | 'spouse' | 'child' | 'sibling'
+export type NewRelation = 'father' | 'mother' | 'spouse' | 'partner' | 'child' | 'sibling'
 
 interface Who {
     surname: string

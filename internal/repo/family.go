@@ -198,6 +198,7 @@ const (
 	RelFather  Relation = "father"
 	RelMother  Relation = "mother"
 	RelSpouse  Relation = "spouse"
+	RelPartner Relation = "partner" // concubin(e) : union libre
 	RelChild   Relation = "child"
 	RelSibling Relation = "sibling"
 )
@@ -222,7 +223,7 @@ func roleForSex(sex string) string {
 func (s *Store) CreateRelative(ctx context.Context, personID string, rel Relation, np NewPerson, opts RelativeOpts) (string, error) {
 	var newID string
 	labels := map[Relation]string{RelFather: "Ajouter un père", RelMother: "Ajouter une mère",
-		RelSpouse: "Ajouter un conjoint", RelChild: "Ajouter un enfant", RelSibling: "Ajouter un frère ou une sœur"}
+		RelSpouse: "Ajouter un conjoint", RelPartner: "Ajouter un concubin", RelChild: "Ajouter un enfant", RelSibling: "Ajouter un frère ou une sœur"}
 	label, ok := labels[rel]
 	if !ok {
 		return "", fmt.Errorf("relation inconnue: %q", rel)
@@ -298,13 +299,17 @@ func (s *Store) CreateRelative(ctx context.Context, personID string, rel Relatio
 					}
 				}
 			}
-		case RelSpouse:
+		case RelSpouse, RelPartner:
 			id, err := t.createPerson(np)
 			if err != nil {
 				return err
 			}
 			newID = id
-			if _, err := t.createUnion("marriage", personID, id); err != nil {
+			unionType := "marriage"
+			if rel == RelPartner {
+				unionType = "free"
+			}
+			if _, err := t.createUnion(unionType, personID, id); err != nil {
 				return err
 			}
 		case RelChild:

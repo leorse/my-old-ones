@@ -1,4 +1,4 @@
-import {useEffect, useState, type FormEvent} from 'react'
+import {useEffect, useId, useState, type FormEvent} from 'react'
 import {useTranslation} from 'react-i18next'
 import type {repo} from '../../ipc'
 import {ipc} from '../../ipc'
@@ -35,30 +35,40 @@ export function DateInput({value, onChange, label}: { value: string; onChange: (
     )
 }
 
-/** Choix d'un lieu existant par recherche, avec création rapide. */
-export function PlacePicker({value, onChange}: { value: string; onChange: (id: string, name: string) => void }) {
+/**
+ * Choix d'un lieu existant par recherche, avec création rapide.
+ * onChange reçoit l'identifiant du lieu reconnu ("" si le texte ne correspond à aucun lieu), son nom et le texte saisi.
+ */
+export function PlacePicker({value, initialText = '', label, onChange}: {
+    value: string
+    initialText?: string
+    label?: string
+    onChange: (id: string, name: string, text: string) => void
+}) {
     const {t} = useTranslation()
-    const [text, setText] = useState('')
+    const listId = useId()
+    const [text, setText] = useState(initialText)
     const q = useDebounced(text, 150)
     const places = usePlaces(q)
     const create = useAction(async (name: string) => {
         const id = await ipc.createPlace({name, type: 'commune', parentId: '', codeInsee: '', validFrom: '', validTo: ''})
-        onChange(id, name)
+        onChange(id, name, name)
         setText(name)
     })
     const exact = places.data?.some((p) => p.displayName.toLowerCase() === text.trim().toLowerCase())
+    const title = label ?? t('events.place')
     return (
         <span className="place-picker">
-            <input aria-label={t('events.place')} placeholder={t('events.place')} list="place-options" value={text}
+            <input aria-label={title} placeholder={title} list={listId} value={text}
                    onChange={(e) => {
                        setText(e.target.value)
                        const hit = places.data?.find((p) => p.displayName === e.target.value)
-                       onChange(hit?.id ?? '', hit?.displayName ?? '')
+                       onChange(hit?.id ?? '', hit?.displayName ?? '', e.target.value)
                    }}/>
-            <datalist id="place-options">
+            <datalist id={listId}>
                 {places.data?.slice(0, 20).map((p) => <option key={p.id} value={p.displayName}/>)}
             </datalist>
-            {text.trim() && !exact && !value && (
+            {text.trim() && !exact && !(value && text.trim() === initialText.trim()) && (
                 <button type="button" onClick={() => create.mutate([text.trim()])}>
                     {t('events.newPlace', {name: text.trim()})}
                 </button>

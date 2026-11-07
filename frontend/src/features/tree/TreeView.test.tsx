@@ -37,6 +37,8 @@ vi.mock('../../ipc', () => ({
     ipc: {
         getRoot: vi.fn(async () => 'me'),
         getPerson: vi.fn(async () => detail),
+        listPlaces: vi.fn(async () => []),
+        previewDate: vi.fn(async (s: string) => ({display: s, precision: 'exact', calendar: 'gregorian', structured: true})),
         listPersons: vi.fn(async () => [{id: 'me', surname: 'Le Gall', givenNames: ['Yves'], sex: 'M', living: 'deceased'}]),
         getTree: vi.fn(async () => tree),
         createRelative: vi.fn(async () => 'new'),
@@ -103,11 +105,11 @@ describe('TreeView', () => {
         const adds = (g: SVGGElement) => [...g.querySelectorAll('.tadd')].map((e) => e.getAttribute('aria-label'))
 
         // me : deux parents connus => pas de + père / mère ; fratrie et enfant proposés
-        expect(adds(await nodeOf('Yves LE GALL'))).toEqual(['Ajouter un frère ou une sœur', 'Ajouter un enfant'])
+        expect(adds(await nodeOf('Yves LE GALL'))).toEqual(['Ajouter un frère ou une sœur', 'Ajouter un enfant', 'Ajouter un concubin'])
         // dad : aucun parent => père, mère et enfant, mais pas de fratrie (impossible sans parents)
-        expect(adds(await nodeOf('Jean LE GALL'))).toEqual(['Ajouter un père', 'Ajouter une mère', 'Ajouter un enfant'])
+        expect(adds(await nodeOf('Jean LE GALL'))).toEqual(['Ajouter un père', 'Ajouter une mère', 'Ajouter un enfant', 'Ajouter un concubin'])
         // kid : père connu, mère absente
-        expect(adds(await nodeOf('Paul LE GALL'))).toEqual(['Ajouter une mère', 'Ajouter un frère ou une sœur', 'Ajouter un enfant'])
+        expect(adds(await nodeOf('Paul LE GALL'))).toEqual(['Ajouter une mère', 'Ajouter un frère ou une sœur', 'Ajouter un enfant', 'Ajouter un concubin'])
     })
 
     it('un clic sur « + enfant » sélectionne la case et ouvre le formulaire de création', async () => {
@@ -158,7 +160,7 @@ describe('TreeView', () => {
         renderTree()
         const dad = (await screen.findByText('Jean LE GALL', {selector: 'text'})).closest('g.tnode') as SVGGElement
         const icons = [...dad.querySelectorAll('.tadd image')].map((i) => i.getAttribute('href') ?? '')
-        expect(icons).toHaveLength(3)
+        expect(icons).toHaveLength(4)
         expect(icons.every((h) => /\.svg$|^data:image\/svg/.test(h))).toBe(true)
         fireEvent.click(dad.querySelector('[aria-label="Ajouter un père"]')!)
         // même effet que le bouton « + Père » du panneau : formulaire ouvert, bouton enfoncé, nom prérempli
@@ -210,19 +212,44 @@ describe('TreeView', () => {
         expect(container.querySelector('svg')!.hasAttribute('width')).toBe(false)
     })
 
-    it('affiche les détails de la personne sélectionnée dans la zone du bas', async () => {
+    it("modifie la personne sélectionnée dans la zone du bas, avec ses onglets", async () => {
         useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
         renderTree()
-        const zone = await screen.findByRole('region', {name: 'Informations sur la personne sélectionnée'})
-        expect(zone).toHaveTextContent('Sélectionnez une personne')
+        const zone = await screen.findByRole('region', {name: 'Modification de la personne sélectionnée'})
+        expect(zone).toHaveTextContent("Sélectionnez une personne dans l'arbre pour la modifier")
         const dad = (await screen.findByText('Jean LE GALL', {selector: 'text'})).closest('g.tnode') as SVGGElement
         fireEvent.click(dad)
-        await waitFor(() => expect(zone).toHaveTextContent('12 mars 1845 · Saint-Malo'))
-        expect(zone).toHaveTextContent('3 mai 1920 · Dinan')
-        expect(zone).toHaveTextContent('Âge : 75 ans')
-        expect(zone).toHaveTextContent('Profession : laboureur')
+        // onglet « Informations » par défaut : dates et lieux modifiables
+        expect(await screen.findByRole('textbox', {name: 'Date de naissance'})).toHaveValue('12 mars 1845')
+        expect(screen.getByRole('textbox', {name: 'Date de décès'})).toHaveValue('3 mai 1920')
+        expect(screen.getByRole('tab', {name: 'Informations'})).toHaveAttribute('aria-selected', 'true')
         expect(zone).toHaveTextContent('Sosa n° 4')
-        expect(zone).toHaveTextContent('Marin pêcheur')
-        expect(zone).toHaveTextContent('0 enfant')
+        fireEvent.click(screen.getByRole('tab', {name: 'Parents'}))
+        expect(zone).toHaveTextContent('Aucun parent connu')
+        fireEvent.click(screen.getByRole('tab', {name: 'Enfants'}))
+        expect(screen.getByRole('form', {name: 'Ajouter un enfant'})).toBeInTheDocument()
+    })
+
+    it("ajoute un concubin avec le cœur placé à droite de la case : union libre, formulaire et bouton enfoncé", async () => {
+        const user = userEvent.setup()
+        useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
+        renderTree()
+        const dad = (await screen.findByText('Jean LE GALL', {selector: 'text'})).closest('g.tnode') as SVGGElement
+        const heart = dad.querySelector('[aria-label="Ajouter un concubin"]') as SVGGElement
+        // à droite de la case, à mi-hauteur
+        expect(heart.getAttribute('transform')).toBe('translate(170 29)')
+        const iconOf = (label: string) => dad.querySelector(`[aria-label="${label}"] image`)!.getAttribute('href')
+        expect(iconOf('Ajouter un concubin')).toBeTruthy()
+        expect(iconOf('Ajouter un concubin')).not.toBe(iconOf('Ajouter un enfant'))
+        fireEvent.click(heart)
+        const side = screen.getByRole('complementary', {name: 'Personne sélectionnée'})
+        expect([...side.querySelectorAll('button[aria-pressed="true"]')].map((b) => b.textContent)).toEqual(['+ Concubin(e)'])
+        expect(screen.getByRole('textbox', {name: 'Nom'})).toHaveValue('') // un concubin a son propre nom
+        await user.type(screen.getByRole('textbox', {name: 'Prénoms'}), 'Marie')
+        await user.click(screen.getByRole('button', {name: 'Créer'}))
+        await waitFor(() => expect(ipc.createRelative).toHaveBeenCalled())
+        const call = vi.mocked(ipc.createRelative).mock.calls.at(-1)!
+        expect(call[0]).toBe('dad')
+        expect(call[1]).toBe('partner')
     })
 })

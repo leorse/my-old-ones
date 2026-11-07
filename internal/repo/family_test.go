@@ -425,3 +425,30 @@ func TestUpdateParentLinkAndReorder(t *testing.T) {
 		t.Fatal("délier ne doit pas supprimer les personnes")
 	}
 }
+
+func TestCreatePartnerMakesFreeUnion(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	me := mustPerson(t, s, "Moi")
+	p := mkRel(t, s, me, RelPartner, "Autre", "Concubin")
+	var typ string
+	if err := s.DB.QueryRow(`SELECT type FROM unions`).Scan(&typ); err != nil || typ != "free" {
+		t.Fatalf("type d'union: %q %v", typ, err)
+	}
+	if count(s, "union_partners") != 2 {
+		t.Fatal("deux partenaires attendus")
+	}
+	// l'enfant d'un concubinage est rattaché à l'union libre et a deux parents
+	kid := mkRel(t, s, me, RelChild, "Moi", "Petit")
+	f, _ := s.GetFamily(ctx, me)
+	if len(f.Unions) != 1 || f.Unions[0].Type != "free" || len(f.Unions[0].Children) != 1 || f.Unions[0].Children[0].Person.ID != kid {
+		t.Fatalf("%+v", f.Unions)
+	}
+	_ = p
+	// annulable en une fois
+	s.Undo(ctx) // enfant
+	s.Undo(ctx) // concubin
+	if count(s, "unions") != 0 || count(s, "persons") != 1 {
+		t.Fatal("annulation incomplète")
+	}
+}
