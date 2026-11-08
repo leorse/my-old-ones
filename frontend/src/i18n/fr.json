@@ -216,7 +216,8 @@
       "father": "Un père existe mais n'est pas affiché : cliquer pour l'afficher",
       "mother": "Une mère existe mais n'est pas affichée : cliquer pour l'afficher",
       "child_one": "{{count}} enfant non affiché : cliquer pour l'afficher",
-      "child_other": "{{count}} enfants non affichés : cliquer pour les afficher"
+      "child_other": "{{count}} enfants non affichés : cliquer pour les afficher",
+      "childSome": "{{count}} enfants, dont {{hidden}} non affiché(s) : cliquer pour les afficher"
     }
   },
   "search": {

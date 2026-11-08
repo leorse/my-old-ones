@@ -159,3 +159,25 @@ fieldset.slot legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
 .editor-children .editor-list { flex: 1 1 260px; min-width: 220px; }
 .add-child { flex: 1 1 320px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; padding: 8px; border: 1px dashed var(--border); border-radius: 8px; }
 .add-child strong { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+
+/* --- transitions de l'arbre ---
+   Les cases sont positionnées par transform CSS : quand l'arbre est recentré, elles glissent vers leur nouvelle
+   place pendant que la caméra amène la nouvelle case sélectionnée au centre. Même durée et même courbe partout. */
+.tview { transform-origin: 0 0; }
+.tview.animating { transition: transform 520ms cubic-bezier(.22, .8, .24, 1); }
+.tnode { transition: transform 520ms cubic-bezier(.22, .8, .24, 1); animation: tfade 380ms ease-out; }
+.tedge.enter { animation: tfade 420ms ease-out 120ms both; }
+.tedge.leave { animation: tfadeout 260ms ease-in forwards; pointer-events: none; }
+@keyframes tfade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tfadeout { from { opacity: 1; } to { opacity: 0; } }
+/* la case d'arrivée pulse brièvement */
+.tnode.arrived .tbox { animation: tarrive 1200ms ease-out 300ms; }
+@keyframes tarrive {
+    0%   { stroke-width: 5; }
+    35%  { stroke-width: 11; }
+    100% { stroke-width: 5; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .tview.animating, .tnode { transition: none; }
+    .tnode, .tedge.enter, .tedge.leave, .tnode.arrived .tbox { animation: none; }
+}

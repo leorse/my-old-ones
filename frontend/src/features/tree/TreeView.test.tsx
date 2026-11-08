@@ -40,7 +40,7 @@ vi.mock('../../ipc', () => ({
         listPlaces: vi.fn(async () => []),
         previewDate: vi.fn(async (s: string) => ({display: s, precision: 'exact', calendar: 'gregorian', structured: true})),
         listPersons: vi.fn(async () => [{id: 'me', surname: 'Le Gall', givenNames: ['Yves'], sex: 'M', living: 'deceased'}]),
-        getTree: vi.fn(async () => tree),
+        getTree: vi.fn(async (focus: string) => ({...tree, focus})),
         createRelative: vi.fn(async () => 'new'),
     },
 }))
@@ -132,10 +132,10 @@ describe('TreeView', () => {
         useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
         renderTree()
         const me = (await screen.findByText('Yves LE GALL', {selector: 'text'})).closest('g.tnode') as SVGGElement
-        // Yves a 3 enfants en base mais un seul (Paul) est dessiné : 2 masqués
+        // Yves a 3 enfants en base mais un seul (Paul) est dessiné : la pastille annonce le TOTAL (3), dont 2 masqués
         const badge = me.querySelector('.tbadge')!
-        expect(badge).toHaveAttribute('aria-label', expect.stringContaining('2 enfants non affichés'))
-        expect(badge.textContent).toContain('2')
+        expect(badge).toHaveAttribute('aria-label', '3 enfants, dont 2 non affiché(s) : cliquer pour les afficher')
+        expect(badge.querySelector('text')!.textContent).toBe('3')
         // père et mère présents dans l'arbre : aucune pastille parent
         expect(me.querySelectorAll('.tbadge')).toHaveLength(1)
         fireEvent.click(badge)
@@ -184,13 +184,14 @@ describe('TreeView', () => {
         const dad = (await screen.findByText('Jean LE GALL', {selector: 'text'})).closest('g.tnode') as SVGGElement
         const svg = container.querySelector('svg')!
         const viewG = svg.querySelector(':scope > g') as SVGGElement
-        const before = viewG.getAttribute('transform')
+        const before = viewG.style.transform
 
         fireEvent.pointerDown(dad, {clientX: 100, clientY: 100, button: 0, pointerId: 1})
         fireEvent.pointerMove(svg, {clientX: 160, clientY: 130, pointerId: 1})
         fireEvent.pointerUp(svg, {clientX: 160, clientY: 130, pointerId: 1})
         fireEvent.click(dad) // clic synthétique qui suit un glisser
-        expect(viewG.getAttribute('transform')).not.toBe(before)
+        expect(viewG.style.transform).not.toBe(before)
+        expect(viewG).not.toHaveClass('animating') // un glisser à la souris n'est jamais animé
         expect(screen.queryByRole('complementary', {name: 'Personne sélectionnée'})).not.toBeInTheDocument()
 
         // simple clic (sans mouvement) : sélection
@@ -251,5 +252,94 @@ describe('TreeView', () => {
         const call = vi.mocked(ipc.createRelative).mock.calls.at(-1)!
         expect(call[0]).toBe('dad')
         expect(call[1]).toBe('partner')
+    })
+
+    describe('transitions lors du recentrage', () => {
+        const caseOf = async (name: string) => (await screen.findByText(name, {selector: 'text'})).closest('g.tnode') as SVGGElement
+
+        it('garde le même élément pour une personne quand l\'arbre est recentré : la case glisse au lieu d\'être recréée', async () => {
+            useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
+            renderTree()
+            const dad = await caseOf('Jean LE GALL')
+            const meBefore = await caseOf('Yves LE GALL')
+            const before = meBefore.style.transform
+            fireEvent.doubleClick(dad)
+            await waitFor(() => expect(ipc.getTree).toHaveBeenCalledWith('dad', 4, 2))
+            // Yves (qui était entre ses parents) est le MÊME élément après recentrage sur son père : il glisse
+            // vers sa nouvelle place au lieu d'être recréé
+            await waitFor(() => expect(meBefore.style.transform).not.toBe(before))
+            expect(meBefore.isConnected).toBe(true)
+            expect(await caseOf('Yves LE GALL')).toBe(meBefore)
+            expect(await caseOf('Jean LE GALL')).toBe(dad)
+        })
+
+        it("garde la personne cliquée à sa place dans le repère de l'arbre : les autres glissent autour d'elle", async () => {
+            useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
+            renderTree()
+            const dad = await caseOf('Jean LE GALL')
+            const before = dad.style.transform
+            fireEvent.doubleClick(dad)
+            await waitFor(() => expect(dad).toHaveClass('selected'))
+            expect(dad.style.transform).toBe(before)
+        })
+
+        it('sélectionne la nouvelle personne centrale, la met en évidence et anime la caméra', async () => {
+            useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
+            const {container} = renderTree()
+            const dad = await caseOf('Jean LE GALL')
+            expect(dad).not.toHaveClass('selected')
+            fireEvent.doubleClick(dad)
+            await waitFor(() => expect(dad).toHaveClass('selected'))
+            expect(dad).toHaveClass('focus')
+            expect(dad).toHaveClass('arrived') // pulsation d'arrivée
+            // la caméra se déplace avec une transition
+            expect(container.querySelector('svg > g')).toHaveClass('animating')
+            // le panneau montre la personne arrivée
+            expect(screen.getByRole('complementary', {name: 'Personne sélectionnée'})).toHaveTextContent('Jean LE GALL')
+            // la mise en évidence est temporaire
+            await waitFor(() => expect(dad).not.toHaveClass('arrived'), {timeout: 3000})
+        })
+
+        it('une pastille « enfants cachés » recentre avec la même transition et sélectionne la personne', async () => {
+            useUI.setState({treeFocus: null, treeMode: 'ancestors', treeUp: 4, treeDown: 2})
+            renderTree()
+            const dad = await caseOf('Jean LE GALL')
+            // en mode ascendants, dad a 1 enfant en base (childCount) mais 1 dessiné (me) : pas de pastille ;
+            // Yves en a 3 dont 0 dessiné en mode ascendants
+            const me = await caseOf('Yves LE GALL')
+            fireEvent.click(me.querySelector('.tbadge[aria-label*="enfants"]')!)
+            expect(useUI.getState().treeMode).toBe('hourglass')
+            await waitFor(() => expect(me).toHaveClass('selected'))
+            expect(dad.isConnected).toBe(true)
+        })
+
+        it("ne change pas la sélection quand on modifie seulement la profondeur de l'arbre", async () => {
+            const user = userEvent.setup()
+            useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
+            renderTree()
+            const dad = await caseOf('Jean LE GALL')
+            fireEvent.click(dad)
+            expect(dad).toHaveClass('selected')
+            await user.click(screen.getByRole('button', {name: 'Plus de descendants'}))
+            await waitFor(() => expect(ipc.getTree).toHaveBeenLastCalledWith('me', 4, 3))
+            expect(await caseOf('Jean LE GALL')).toHaveClass('selected')
+        })
+
+        it('conserve l\'ancien arbre à l\'écran pendant le chargement du nouveau (pas de blanc)', async () => {
+            useUI.setState({treeFocus: null, treeMode: 'hourglass', treeUp: 4, treeDown: 2})
+            renderTree()
+            const dad = await caseOf('Jean LE GALL')
+            let release: () => void = () => {}
+            vi.mocked(ipc.getTree).mockImplementationOnce(() => new Promise((resolve) => {
+                release = () => resolve({...tree, focus: 'dad'} as never)
+            }))
+            fireEvent.doubleClick(dad)
+            await waitFor(() => expect(ipc.getTree).toHaveBeenCalledWith('dad', 4, 2))
+            // chargement en cours : toujours des cases à l'écran
+            expect(document.querySelectorAll('g.tnode').length).toBeGreaterThan(0)
+            expect(dad.isConnected).toBe(true)
+            release()
+            await waitFor(() => expect(dad).toHaveClass('selected'))
+        })
     })
 })

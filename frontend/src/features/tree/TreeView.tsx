@@ -13,7 +13,7 @@ import childIcon from '../../assets/icons/child.svg'
 import broIcon from '../../assets/icons/bro.svg'
 import heartIcon from '../../assets/icons/heart.svg'
 import {PersonEditor} from './PersonEditor'
-import {BOX_H, BOX_W, buildLayout, childIds, parentIds, type LNode} from './layout'
+import {BOX_H, BOX_W, buildLayout, childIds, parentIds, type LEdge, type Layout, type LNode} from './layout'
 
 const SEX_COLOR: Record<string, string> = {M: '#3b82f6', F: '#ec4899', other: '#a855f7', unknown: '#9ca3af'}
 const MODES: TreeMode[] = ['hourglass', 'ancestors', 'descendants']
@@ -78,6 +78,28 @@ function HiddenBadge({kind, count, label, onClick}: { kind: BadgeKind; count: nu
     )
 }
 
+/**
+ * Remplace les clés de mise en page (liées à la position dans l'arbre) par des clés liées à la PERSONNE.
+ * Ainsi, quand l'arbre est recentré, les cases qui restent à l'écran glissent vers leur nouvelle place
+ * au lieu d'être détruites puis recréées. Le centre de l'arbre garde la clé « pure » ; une personne dessinée
+ * plusieurs fois (implexe) reçoit « #2 », « #3 »…
+ */
+function withPersonKeys(l: Layout): Layout {
+    const seen = new Map<string, number>()
+    const keyOf = new Map<LNode, string>()
+    for (const n of [...l.nodes].sort((a, b) => Number(b.isFocus) - Number(a.isFocus))) {
+        const c = seen.get(n.id) ?? 0
+        seen.set(n.id, c + 1)
+        keyOf.set(n, c === 0 ? n.id : `${n.id}#${c}`)
+    }
+    return {...l, nodes: l.nodes.map((n) => ({...n, key: keyOf.get(n)!}))}
+}
+
+const ANIM_MS = 520
+
+/** Mise en page affichée, exprimée dans un repère « monde » continu d'une mise en page à la suivante. */
+type Shown = Layout & { ox: number; oy: number }
+
 function truncate(s: string, n: number) {
     return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
@@ -111,10 +133,37 @@ export function TreeView() {
         if (tree.isError && treeFocus) setTreeFocus(null)
     }, [tree.isError, treeFocus, setTreeFocus])
     const data = tree.isError ? undefined : tree.data
-    const layout = useMemo(
+    // `fresh` : mise en page de la personne demandée ; null tant que ses données se chargent.
+    // On continue alors d'afficher la précédente (pas de blanc) jusqu'à l'arrivée de la nouvelle, qui s'animera.
+    const fresh = useMemo(
         () => (data && focus && data.focus === focus ? buildLayout(data, focus, mode, qUp, qDown) : null),
         [data, focus, mode, qUp, qDown],
     )
+    // Repère continu : chaque mise en page est calculée autour de son centre, donc deux mises en page successives
+    // n'ont pas la même origine. On décale la nouvelle pour qu'une personne présente dans les deux (le nouveau centre
+    // si possible) reste exactement où elle était : les autres cases qui existaient déjà glissent alors seulement
+    // pour faire place aux nouvelles, au lieu de donner l'impression d'un autre arbre.
+    const shown = useRef<Shown | null>(null)
+    const layout = useMemo<Shown | null>(() => {
+        if (!fresh) return shown.current
+        const keyed = withPersonKeys(fresh)
+        const old = shown.current
+        let ox = 0, oy = 0
+        if (old) {
+            const oldByKey = new Map(old.nodes.map((n) => [n.key, n]))
+            const anchor = keyed.nodes.find((n) => n.isFocus && oldByKey.has(n.key)) ?? keyed.nodes.find((n) => oldByKey.has(n.key))
+            if (anchor) {
+                const o = oldByKey.get(anchor.key)!
+                ox = o.x - anchor.x
+                oy = o.y - anchor.y
+            }
+        }
+        const next: Shown = {...keyed, nodes: keyed.nodes.map((n) => ({...n, x: n.x + ox, y: n.y + oy})), ox, oy}
+        shown.current = next
+        return next
+    }, [fresh])
+    const layoutSeq = useRef(0)
+    const seq = useMemo(() => ++layoutSeq.current, [layout]) // eslint-disable-line react-hooks/exhaustive-deps
     const people = useMemo(() => new Map((data?.nodes ?? []).map((n) => [n.person.id, n])), [data])
     const bioParents = useMemo(() => {
         const m = new Map<string, { father?: string; mother?: string }>()
@@ -165,33 +214,70 @@ export function TreeView() {
         return () => ro.disconnect()
     }, [boxEl])
 
-    const fit = useCallback(() => {
+    // Déplacements de la caméra programmés (recentrage, ajuster, zoom +/-) : animés. Souris (glisser, molette) : immédiats.
+    const [animating, setAnimating] = useState(false)
+    const animTimer = useRef<number | undefined>(undefined)
+    const stopAnimation = useCallback(() => {
+        window.clearTimeout(animTimer.current)
+        setAnimating(false)
+    }, [])
+    const goTo = useCallback((v: View, animate: boolean) => {
+        window.clearTimeout(animTimer.current)
+        setAnimating(animate)
+        setView(v)
+        if (animate) animTimer.current = window.setTimeout(() => setAnimating(false), ANIM_MS + 80)
+    }, [])
+    useEffect(() => () => window.clearTimeout(animTimer.current), [])
+
+    const fit = useCallback((animate = true) => {
         if (!layout || layout.width === 0) return
         const k = Math.max(MIN_K, Math.min(1, (size.w - 40) / layout.width, (size.h - 40) / layout.height))
-        setView({k, x: (size.w - layout.width * k) / 2, y: Math.max(20, (size.h - layout.height * k) / 2)})
-    }, [layout, size])
+        goTo({k, x: (size.w - layout.width * k) / 2 + layout.ox * k, y: Math.max(20, (size.h - layout.height * k) / 2) + layout.oy * k}, animate)
+    }, [layout, size, goTo])
 
-    const centerOn = useCallback((n: LNode, k = viewRef.current.k) => {
-        setView({k, x: size.w / 2 - (n.x + BOX_W / 2) * k, y: size.h / 2 - (n.y + BOX_H / 2) * k})
-    }, [size])
+    const centerOn = useCallback((n: LNode, animate = true, k = viewRef.current.k) => {
+        goTo({k, x: size.w / 2 - (n.x + BOX_W / 2) * k, y: size.h / 2 - (n.y + BOX_H / 2) * k}, animate)
+    }, [size, goTo])
 
-    // recadre à chaque changement de focus / mode / profondeur (pas à chaque rafraîchissement des données)
+    // case « arrivée » : brève mise en évidence après un recentrage, pour repérer où l'on se trouve
+    const [arrivedKey, setArrivedKey] = useState<string | null>(null)
+    const arrivedTimer = useRef<number | undefined>(undefined)
+    useEffect(() => () => window.clearTimeout(arrivedTimer.current), [])
+    const markArrived = useCallback((key: string) => {
+        setArrivedKey(key)
+        window.clearTimeout(arrivedTimer.current)
+        arrivedTimer.current = window.setTimeout(() => setArrivedKey(null), 1400)
+    }, [])
+
+    // Recadre à chaque changement de centre / mode / profondeur (pas à chaque rafraîchissement des données).
+    // Quand le CENTRE change (double-clic, pastille, « recentrer »…), la nouvelle personne est sélectionnée
+    // et amenée au milieu de l'écran par une transition ; les autres cases glissent vers leur nouvelle place.
     const lastKey = useRef('')
+    const lastFocus = useRef<string | null>(null)
     useEffect(() => {
-        if (!layout) return
+        if (!fresh || !layout) return
         const key = `${focus}|${mode}|${qUp}|${qDown}`
         if (key === lastKey.current) return
         lastKey.current = key
         const fn = layout.nodes.find((n) => n.isFocus)
-        if (!initialized.current || !fn) {
+        const first = !initialized.current
+        const focusChanged = lastFocus.current !== null && lastFocus.current !== focus
+        lastFocus.current = focus
+        if (first || !fn) {
             initialized.current = true
-            fit()
+            fit(false)
         } else {
-            centerOn(fn)
+            centerOn(fn, true)
         }
-        setSelectedKey(null)
+        if (focusChanged && fn) {
+            setSelectedKey(fn.key)
+            markArrived(fn.key)
+        } else {
+            // la sélection survit si la personne est toujours dessinée (les clés sont celles des personnes)
+            setSelectedKey((k) => (k && layout.nodes.some((n) => n.key === k) ? k : null))
+        }
         setAdding(null)
-    }, [layout, focus, mode, qUp, qDown, fit, centerOn])
+    }, [fresh, layout, focus, mode, qUp, qDown, fit, centerOn, markArrived])
 
     useEffect(() => {
         const el = svg.current
@@ -203,6 +289,7 @@ export function TreeView() {
             const py = e.clientY - r.top
             const v = viewRef.current
             const k = Math.max(MIN_K, Math.min(MAX_K, v.k * Math.exp(-e.deltaY * 0.0015)))
+            stopAnimation()
             setView({k, x: px - (px - v.x) * (k / v.k), y: py - (py - v.y) * (k / v.k)})
         }
         el.addEventListener('wheel', onWheel, {passive: false})
@@ -219,6 +306,7 @@ export function TreeView() {
         const target = e.target as Element
         if (target.closest('.tadd, .tbadge')) return // boutons : pas de déplacement
         justDragged.current = false
+        stopAnimation()
         drag.current = {x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false, onNode: !!target.closest('.tnode')}
     }
     const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
@@ -246,12 +334,26 @@ export function TreeView() {
         }
     }
 
+    // Arêtes : celles de la mise en page précédente s'effacent, les nouvelles apparaissent en fondu.
+    type EdgeSet = { edges: LEdge[]; ox: number; oy: number }
+    const lastEdges = useRef<EdgeSet | null>(null)
+    const [leaving, setLeaving] = useState<EdgeSet | null>(null)
+    useLayoutEffect(() => {
+        if (!layout) return
+        const old = lastEdges.current
+        lastEdges.current = {edges: layout.edges, ox: layout.ox, oy: layout.oy}
+        if (!old || old.edges.length === 0 || old.edges === layout.edges) return
+        setLeaving(old)
+        const timer = window.setTimeout(() => setLeaving(null), 320)
+        return () => window.clearTimeout(timer)
+    }, [layout])
+
     const zoomBy = (f: number) => {
         const v = viewRef.current
         const k = Math.max(MIN_K, Math.min(MAX_K, v.k * f))
         const cx = size.w / 2
         const cy = size.h / 2
-        setView({k, x: cx - (cx - v.x) * (k / v.k), y: cy - (cy - v.y) * (k / v.k)})
+        goTo({k, x: cx - (cx - v.x) * (k / v.k), y: cy - (cy - v.y) * (k / v.k)}, true)
     }
 
     // --- clavier : flèches = parent / enfant / voisin, Entrée = fiche, Origine = focus ---
@@ -317,18 +419,24 @@ export function TreeView() {
 
     /** Parents / enfants qui existent mais ne sont pas dessinés dans la vue courante. */
     const hiddenFor = (n: LNode, p: NonNullable<ReturnType<typeof people.get>>) => {
-        const out: { kind: BadgeKind; count: number }[] = []
+        // count = nombre à afficher dans la pastille ; hidden = parmi eux, ceux qui ne sont pas dessinés
+        const out: { kind: BadgeKind; count: number; hidden: number }[] = []
         const bio = bioParents.get(n.id)
-        if (p.hasFather && !(bio?.father && n.shownParents.includes(bio.father))) out.push({kind: 'father', count: 1})
-        if (p.hasMother && !(bio?.mother && n.shownParents.includes(bio.mother))) out.push({kind: 'mother', count: 1})
+        if (p.hasFather && !(bio?.father && n.shownParents.includes(bio.father))) out.push({kind: 'father', count: 1, hidden: 1})
+        if (p.hasMother && !(bio?.mother && n.shownParents.includes(bio.mother))) out.push({kind: 'mother', count: 1, hidden: 1})
         const kids = p.childCount - n.shownChildren
-        if (kids > 0) out.push({kind: 'child', count: kids})
+        // la pastille donne le NOMBRE TOTAL d'enfants (pas seulement les masqués) : c'est ce que l'on cherche à savoir
+        if (kids > 0) out.push({kind: 'child', count: p.childCount, hidden: kids})
         return out
     }
     /** Clic sur une pastille : recentre sur la personne, en passant en sablier si la vue ne montre pas ce côté. */
     const revealHidden = (id: string, kind: BadgeKind) => {
         if (kind !== 'child' && mode === 'descendants') setMode('hourglass')
         if (kind === 'child' && mode === 'ancestors') setMode('hourglass')
+        // la personne dont on a déplié les proches est sélectionnée et mise en évidence, même si elle était déjà au centre
+        // (les clés des cases sont celles des personnes)
+        setSelectedKey(id)
+        markArrived(id)
         setTreeFocus(id)
     }
 
@@ -363,7 +471,7 @@ export function TreeView() {
                 {rootId && focus !== rootId && <button onClick={() => setTreeFocus(rootId)}>{t('tree.toRoot')}</button>}
                 <button aria-label={t('tree.zoomOut')} onClick={() => zoomBy(1 / 1.25)}>−</button>
                 <button aria-label={t('tree.zoomIn')} onClick={() => zoomBy(1.25)}>+</button>
-                <button onClick={fit}>{t('tree.fit')}</button>
+                <button onClick={() => fit(true)}>{t('tree.fit')}</button>
             </div>
             <div className="tree-main">
                 <div className="tree-canvas" ref={setBoxEl}>
@@ -377,16 +485,22 @@ export function TreeView() {
                     <svg ref={svg} tabIndex={0} role="application"
                          aria-label={t('tree.title')} onKeyDown={onKeyDown}
                          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
-                        <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
-                            {layout?.edges.map((e, i) => <path key={i} d={e.d} className={`tedge ${e.kind}`}/>)}
+                        <g className={`tview${animating ? ' animating' : ''}`}
+                           style={{transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})`}}>
+                            {leaving && <g style={{transform: `translate(${leaving.ox}px, ${leaving.oy}px)`}}>
+                                {leaving.edges.map((e, i) => <path key={`l${i}`} d={e.d} className={`tedge ${e.kind} leave`}/>)}
+                            </g>}
+                            {layout && <g style={{transform: `translate(${layout.ox}px, ${layout.oy}px)`}}>
+                                {layout.edges.map((e, i) => <path key={`e${seq}-${i}`} d={e.d} className={`tedge ${e.kind} enter`}/>)}
+                            </g>}
                             {layout?.nodes.map((n) => {
                                 const p = people.get(n.id)
                                 if (!p) return null
                                 const label = personLabel(p.person, t('common.unknown'))
                                 const isSel = n.key === selectedKey
                                 return (
-                                    <g key={n.key} className={`tnode${isSel ? ' selected' : ''}${n.isFocus ? ' focus' : ''}`}
-                                       transform={`translate(${n.x} ${n.y})`}
+                                    <g key={n.key} className={`tnode${isSel ? ' selected' : ''}${n.isFocus ? ' focus' : ''}${n.key === arrivedKey ? ' arrived' : ''}`}
+                                       style={{transform: `translate(${n.x}px, ${n.y}px)`}}
                                        onClick={(e) => { e.stopPropagation(); if (justDragged.current) return; setSelectedKey(n.key); setAdding(null); svg.current?.focus() }}
                                        onDoubleClick={() => setTreeFocus(n.id)}>
                                         <title>{label}</title>
@@ -401,7 +515,9 @@ export function TreeView() {
                                                        onAdd={() => { setSelectedKey(n.key); setAdding({relation: r, unionId: ''}) }}/>
                                         ))}
                                         {hiddenFor(n, p).map((h) => (
-                                            <HiddenBadge key={h.kind} kind={h.kind} count={h.count} label={t(`tree.hidden.${h.kind}`, {count: h.count})}
+                                            <HiddenBadge key={h.kind} kind={h.kind} count={h.count} label={h.kind === 'child' && h.hidden < h.count
+                                                ? t('tree.hidden.childSome', {count: h.count, hidden: h.hidden})
+                                                : t(`tree.hidden.${h.kind}`, {count: h.count})}
                                                          onClick={() => revealHidden(n.id, h.kind)}/>
                                         ))}
                                         {showSosa && n.sosa !== undefined && <text x={BOX_W - 8} y={16} textAnchor="end" className="tsosa">{n.sosa}</text>}
